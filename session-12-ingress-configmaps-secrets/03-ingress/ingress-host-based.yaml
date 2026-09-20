@@ -1,0 +1,56 @@
+# ==============================================================================
+# TASK 11 - VIRTUAL HOST-BASED ROUTING (no TLS, no path rules)
+#
+# Added for this session. The repository had ingress-routes.yaml (path-based on
+# a single host) and ingress-tls.yaml (host-based WITH TLS), but nothing that
+# isolates host-based routing on its own.
+#
+# Both hostnames resolve to the SAME ingress controller IP. Nothing about the
+# network distinguishes them - the routing decision is made entirely from the
+# HTTP `Host:` header that the client sends. This is classic name-based virtual
+# hosting, and it is why hundreds of sites can share one IP address.
+#
+# Each host has a single "/" Prefix rule, so no URL rewriting is involved and
+# the path reaches the backend untouched. Compare with ingress-hybrid.yaml,
+# which layers path rules on top of these host rules.
+#
+# Requires portal.campus.local and api.campus.local in /etc/hosts, both
+# pointing at the minikube IP.
+# ==============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: campus-ingress-host-based
+  namespace: default
+  labels:
+    app: yatri-app
+  annotations:
+    # Plain HTTP for this task; TLS is demonstrated separately in Task 13.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    # ---- Virtual host 1: the student portal -> frontend ----
+    - host: portal.campus.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-frontend-service
+                port:
+                  number: 80
+
+    # ---- Virtual host 2: the API subdomain -> backend ----
+    - host: api.campus.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 80

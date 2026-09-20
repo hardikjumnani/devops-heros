@@ -1,0 +1,95 @@
+# ==============================================================================
+# TASK 12 - HYBRID ROUTING: host-based AND path-based in one resource
+#
+# Added for this session.
+#
+# Routing is evaluated in two stages. NGINX first selects a server block from
+# the HTTP `Host:` header, then matches the request path within that block
+# only. Rules under one host are therefore completely invisible to another -
+# portal.campus.local/api and api.campus.local/api are unrelated routes that
+# can point at different services.
+#
+# The resulting matrix:
+#
+#   portal.campus.local/            -> frontend  (Prefix, no rewrite)
+#   portal.campus.local/api/health  -> backend   (regex, rewritten to /health)
+#   api.campus.local/               -> backend   (Prefix, no rewrite)
+#   api.campus.local/docs           -> frontend  (Prefix, no rewrite)
+#
+# Note the last row: it deliberately sends a path on the API subdomain to the
+# FRONTEND service, which proves the two dimensions are independent rather than
+# a host simply mapping to one backend.
+#
+# ---------------------------------------------------------------------------
+# On the rewrite annotation and `/api(/|$)(.*)`
+#
+# The regex puts the remainder of the path in capture group 2, and
+# rewrite-target: /$2 forwards only that group. So a request for
+# /api/health reaches the backend as /health - the backend never has to know
+# it is mounted under /api.
+#
+# Because rewrite-target applies to the WHOLE Ingress resource, every path in
+# this file that must NOT be rewritten uses pathType: Prefix, which the
+# annotation does not affect. Only the ImplementationSpecific regex path is
+# rewritten.
+# ==============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: campus-ingress-hybrid
+  namespace: default
+  labels:
+    app: yatri-app
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    # ================= Host 1: the student portal =================
+    - host: portal.campus.local
+      http:
+        paths:
+          # More specific rule first: /api/* is carved out and sent to the backend.
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 80
+
+          # Everything else on this host goes to the frontend.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-frontend-service
+                port:
+                  number: 80
+
+    # ================= Host 2: the API subdomain =================
+    - host: api.campus.local
+      http:
+        paths:
+          # A path on the API host pointing at the FRONTEND - the two routing
+          # dimensions are genuinely independent.
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-frontend-service
+                port:
+                  number: 80
+
+          # The host root serves the backend directly, with no /api prefix
+          # needed - the subdomain already conveys that.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 80
