@@ -1,0 +1,38 @@
+# ==============================================================================
+# MANUAL ENDPOINTS FOR A SELECTOR-LESS SERVICE
+#
+# The `metadata.name` here is identical to the Service name in
+# service-no-selector.yaml. That name match is the ONLY link between the two
+# objects - there is no selector, no owner reference and no label matching.
+# Kubernetes resolves a Service's backends by looking up an Endpoints object of
+# the same name in the same namespace, so naming it correctly is what makes this
+# work.
+#
+# The address below is Cloudflare's public resolver (1.1.1.1), chosen because it
+# is a stable, always-reachable host that answers on port 80. It stands in for
+# whatever real external infrastructure a cluster would front this way - an RDS
+# instance, an on-prem database, or a third-party API.
+#
+# Traffic sent to external-api-service inside the cluster is forwarded straight
+# out to this address by kube-proxy.
+#
+# NOTE ON THE API VERSION: the v1 Endpoints resource is deprecated from
+# Kubernetes v1.33 onward in favour of discovery.k8s.io/v1 EndpointSlice, and
+# applying this manifest prints a deprecation warning. It is used here because
+# it is still fully functional and is the form this pattern is normally taught
+# in. endpointslice-external.yaml contains the modern equivalent.
+# ==============================================================================
+
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: external-api-service   # must match the Service name exactly
+  labels:
+    app: external-api
+subsets:
+  - addresses:
+      - ip: 1.1.1.1
+    ports:
+      - name: http
+        port: 80
+        protocol: TCP

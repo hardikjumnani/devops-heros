@@ -1,0 +1,41 @@
+# ==============================================================================
+# MODERN EQUIVALENT: EndpointSlice instead of Endpoints
+#
+# v1 Endpoints is deprecated from Kubernetes v1.33. This is the same manual
+# mapping expressed as a discovery.k8s.io/v1 EndpointSlice, which is what a
+# current cluster should use.
+#
+# Two differences that matter:
+#
+#   1. The link back to the Service is made by the LABEL
+#      `kubernetes.io/service-name`, not by the object's own name. An
+#      EndpointSlice can therefore be named anything, and a single Service can
+#      be backed by many slices - which is the scalability problem EndpointSlice
+#      was introduced to solve. A Service with thousands of backends no longer
+#      needs one enormous Endpoints object rewritten on every change.
+#
+#   2. `addressType` is explicit (IPv4, IPv6 or FQDN), where v1 Endpoints
+#      inferred it.
+#
+# Apply EITHER this or endpoints-external.yaml, not both - two sources of truth
+# for the same Service's backends will conflict.
+# ==============================================================================
+
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: external-api-service-manual
+  labels:
+    # This label is what binds the slice to the Service.
+    kubernetes.io/service-name: external-api-service
+    app: external-api
+addressType: IPv4
+ports:
+  - name: http
+    port: 80
+    protocol: TCP
+endpoints:
+  - addresses:
+      - 1.1.1.1
+    conditions:
+      ready: true

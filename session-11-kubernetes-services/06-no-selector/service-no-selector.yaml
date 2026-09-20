@@ -1,0 +1,34 @@
+# ==============================================================================
+# SERVICE WITHOUT A SELECTOR
+#
+# Added for this session - the repository had no manifest for this pattern.
+#
+# Note what is absent: there is no `selector:` block. Normally the endpoints
+# controller watches for pods matching a Service's selector and keeps the
+# Endpoints object in sync automatically. With no selector, that controller
+# does nothing at all - the Service is created, it gets a ClusterIP, and its
+# endpoint list stays empty until something fills it in manually.
+#
+# That is the entire point of this pattern: it lets a cluster-internal DNS name
+# and ClusterIP front infrastructure that is NOT a pod - a managed database, a
+# legacy VM, or an API outside the cluster. Applications address it exactly like
+# any other Service and never need to know the backend is external.
+#
+# The matching Endpoints object lives in endpoints-external.yaml. Its name MUST
+# equal this Service's name - that name match is the only thing binding them.
+# ==============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-api-service
+  labels:
+    app: external-api
+spec:
+  type: ClusterIP
+  # No selector on purpose. Endpoints are supplied manually.
+  ports:
+    - name: http
+      port: 80          # port the Service exposes inside the cluster
+      targetPort: 80    # port on the external backend
+      protocol: TCP
