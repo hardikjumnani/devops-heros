@@ -1,0 +1,12 @@
+{
+  "name": "nodejs-hello-world",
+  "version": "1.0.0",
+  "description": "Hello World web app for the Docker Fundamentals homework",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
