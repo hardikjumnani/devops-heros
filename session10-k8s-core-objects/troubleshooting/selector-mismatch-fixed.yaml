@@ -1,0 +1,33 @@
+# ==============================================================================
+# CORRECTED VERSION OF selector-mismatch.yaml
+#
+# The broken original sets:
+#     spec.selector.matchLabels.app        = correct-app-name
+#     spec.template.metadata.labels.app    = wrong-app-name
+#
+# The API server rejects that outright, because a Deployment's selector must
+# match the labels of the pods it creates - otherwise the Deployment could never
+# find or own its own pods.
+#
+# The single change here is making the template label match the selector. The
+# broken file is left untouched so the rejection can still be demonstrated.
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selector-error-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: correct-app-name
+  template:
+    metadata:
+      labels:
+        # FIXED: now matches spec.selector.matchLabels above
+        app: correct-app-name
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine

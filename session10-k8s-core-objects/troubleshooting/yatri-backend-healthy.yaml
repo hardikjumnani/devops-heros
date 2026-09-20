@@ -1,0 +1,44 @@
+# ==============================================================================
+# HEALTHY BASELINE FOR THE ROLLOUT FAILURE DRILL
+#
+# broken-image.yaml is designed to break an *existing* rollout - its own header
+# says it "proves that old pods remain healthy". That is only observable if a
+# working revision is already running, so this manifest provides it.
+#
+# Deploy this first and wait for 3/3 Ready, then apply broken-image.yaml. Because
+# the strategy sets maxUnavailable: 0, Kubernetes refuses to remove any healthy
+# pod until a replacement is Ready - so the rollout stalls with the old pods
+# still serving while the surge pod sits in ImagePullBackOff.
+#
+# Same name, labels and selector as broken-image.yaml so applying that file is a
+# genuine rolling update of this deployment rather than a fresh creation.
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yatri-backend
+  labels:
+    app: yatri-backend
+    version: "healthy-v1"
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: yatri-backend
+  template:
+    metadata:
+      labels:
+        app: yatri-backend
+        version: "healthy-v1"
+    spec:
+      containers:
+        - name: backend
+          image: nginx:1.25-alpine
+          ports:
+            - containerPort: 5000
